@@ -1,85 +1,32 @@
 import { supabase, type SearchResult } from '@/lib/supabase';
+import { demoResults, demoAreas } from '@/lib/demoData';
+
+// DEMO MODE: search and area list use hardcoded demo data.
+// All other functions still use Supabase for when a database is connected.
 
 export async function searchMedicines(query: string, area: string | null): Promise<SearchResult[]> {
-  let stockQuery = supabase
-    .from('stocks')
-    .select(`
-      id,
-      price,
-      quantity,
-      expiry_date,
-      medicine:medicines(id, brand_name, generic_name, category, form, strength),
-      pharmacy:pharmacies(id, name, area, address, phone, is_verified, is_blocked)
-    `)
-    .gt('quantity', 0)
-    .gte('expiry_date', new Date().toISOString().split('T')[0]);
+  const today = new Date().toISOString().split('T')[0];
 
-  const { data, error } = await stockQuery;
-
-  if (error) throw error;
-  if (!data) return [];
-
-  const results: SearchResult[] = data
-    .filter((row: any) => {
-      const ph = row.pharmacy;
-      if (!ph || !ph.is_verified || ph.is_blocked) return false;
-      if (area && ph.area.toLowerCase() !== area.toLowerCase()) return false;
-      if (query) {
-        const q = query.toLowerCase();
-        const med = row.medicine;
-        if (!med) return false;
-        return (
-          med.brand_name?.toLowerCase().includes(q) ||
-          med.generic_name?.toLowerCase().includes(q) ||
-          med.category?.toLowerCase().includes(q)
-        );
-      }
-      return true;
+  const results = demoResults
+    .filter((r) => r.quantity > 0)
+    .filter((r) => r.expiry_date >= today)
+    .filter((r) => !area || r.pharmacy_area.toLowerCase() === area.toLowerCase())
+    .filter((r) => {
+      if (!query.trim()) return true;
+      const q = query.toLowerCase().trim();
+      return (
+        r.brand_name.toLowerCase().includes(q) ||
+        r.generic_name.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q)
+      );
     })
-    .map((row: any) => ({
-      stock_id: row.id,
-      pharmacy_id: row.pharmacy?.id,
-      pharmacy_name: row.pharmacy?.name,
-      pharmacy_area: row.pharmacy?.area,
-      pharmacy_address: row.pharmacy?.address,
-      pharmacy_phone: row.pharmacy?.phone,
-      medicine_id: row.medicine?.id,
-      brand_name: row.medicine?.brand_name,
-      generic_name: row.medicine?.generic_name,
-      category: row.medicine?.category,
-      form: row.medicine?.form,
-      strength: row.medicine?.strength,
-      price: parseFloat(row.price),
-      quantity: row.quantity,
-      expiry_date: row.expiry_date,
-    }))
     .sort((a, b) => a.price - b.price);
-
-  // Log the search
-  supabase.from('search_logs').insert({
-    query,
-    area: area || null,
-    results_count: results.length,
-  }).then(({ error: logError }) => {
-    if (logError) console.error('Failed to log search:', logError);
-  });
 
   return results;
 }
 
 export async function fetchAreas(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('pharmacies')
-    .select('area')
-    .eq('is_verified', true)
-    .eq('is_blocked', false)
-    .not('area', 'eq', '');
-
-  if (error) throw error;
-  if (!data) return [];
-
-  const areas = [...new Set(data.map((r: any) => r.area).filter(Boolean))] as string[];
-  return areas.sort();
+  return demoAreas;
 }
 
 export async function fetchAllMedicines() {

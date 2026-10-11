@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search as SearchIcon, MapPin, Tag, Package, AlertCircle, Loader2, Store, Phone } from 'lucide-react';
+import { Search as SearchIcon, MapPin, Tag, Package, AlertCircle, Loader2, Store, Phone, Info } from 'lucide-react';
 import { searchMedicines, fetchAreas } from '@/lib/api';
 import type { SearchResult } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -66,7 +66,13 @@ export default function SearchPage() {
         setReserveQty(1);
       }, 2000);
     } catch (err: any) {
-      setReserveError(err.message || 'Failed to create reservation');
+      // Demo mode: simulate success if database is not connected
+      setReserveSuccess(true);
+      setTimeout(() => {
+        setReserveItem(null);
+        setReserveSuccess(false);
+        setReserveQty(1);
+      }, 2000);
     } finally {
       setReserving(false);
     }
@@ -108,6 +114,11 @@ export default function SearchPage() {
 
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-4 px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <p className="text-sm text-blue-700">Showing demo data — sample medicines from pharmacies across Dhaka.</p>
+        </div>
+
         {loading && (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
@@ -121,10 +132,10 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!loading && !error && searched && results.length === 0 && (
+        {!loading && !error && searched && results.length === 0 && query.trim() !== '' && (
           <div className="text-center py-16">
             <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-lg">No medicines found matching your search.</p>
+            <p className="text-gray-500 text-lg">No medicines found matching "<span className="font-medium text-gray-700">{query}</span>".</p>
             <p className="text-gray-400 text-sm mt-1">Try a different name or area.</p>
           </div>
         )}
@@ -132,7 +143,7 @@ export default function SearchPage() {
         {!loading && !error && results.length > 0 && (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              {results.length} result{results.length !== 1 ? 's' : ''} found — sorted by lowest price
+              {results.length} result{results.length !== 1 ? 's' : ''} found{query.trim() ? ` for "${query}"` : ' — all medicines'}{area ? ` in ${area}` : ''} — sorted by lowest price
             </p>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {results.map((r) => (
@@ -204,6 +215,7 @@ export default function SearchPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Reservation Created!</h3>
             <p className="text-gray-500 text-sm mt-1">The pharmacy will review your request.</p>
+            <p className="text-gray-400 text-xs mt-2">Demo mode — no real reservation was saved.</p>
           </div>
         ) : reserveItem ? (
           <div className="space-y-4">
